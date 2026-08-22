@@ -11,4 +11,5 @@ public interface DailyRecordRepository extends JpaRepository<DailyRecord, Long> 
     Optional<DailyRecord> findByStoreIdAndRecordDate(Long storeId, LocalDate recordDate);
     List<DailyRecord> findByStoreIdAndRecordDateBetweenOrderByRecordDateAsc(Long storeId, LocalDate startDate, LocalDate endDate);
     List<DailyRecord> findByStoreId(Long storeId);
+    void deleteByStoreId(Long storeId);
 }

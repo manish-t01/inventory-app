@@ -4,6 +4,29 @@
     <meta charset="UTF-8">
     <title>Stores - Inventory</title>
     <link rel="stylesheet" href="css/style.css">
+    <style>
+        .store-name-input { width: 100%; box-sizing: border-box; padding: 5px; }
+        .success { color: green; font-weight: bold; }
+        .error { color: red; font-weight: bold; }
+        
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); }
+        .modal-content { background-color: #fff; margin: 5% auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 500px; border-radius: 5px; }
+        .close { color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer; }
+        .close:hover { color: black; }
+        .flex-between { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: bold; }
+        .form-group input { width: 100%; padding: 8px; box-sizing: border-box; }
+        .error-msg { color: red; }
+        .success-msg { color: green; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        .btn-danger { background-color: #dc3545; color: white; border: none; padding: 5px 10px; cursor: pointer; border-radius: 3px; }
+        .btn-danger:hover { background-color: #c82333; }
+        .btn-primary { background-color: #007bff; color: white; border: none; padding: 5px 10px; cursor: pointer; border-radius: 3px; }
+        .btn-primary:hover { background-color: #0069d9; }
+    </style>
 </head>
 <body>
     <div class="sidebar">
@@ -18,7 +41,10 @@
         </ul>
     </div>
     <div class="main-content">
-        <h1>Manage Stores</h1>
+        <div class="flex-between">
+            <h1>Manage Stores</h1>
+            <button class="btn-primary" onclick="openAddStoreModal()">+ Add Store</button>
+        </div>
         <p>Store IDs are permanent to ensure historical records remain linked correctly. You may change their names below.</p>
         <table id="storesTable">
             <thead>
@@ -32,22 +58,80 @@
         </table>
         <p id="storeMsg"></p>
     </div>
+
+    <!-- Add Store Modal -->
+    <div id="addStoreModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeAddStoreModal()">&times;</span>
+            <h2>Add New Store</h2>
+            <div class="form-group">
+                <label>Store Name</label>
+                <input type="text" id="newStoreName" placeholder="e.g. New Branch">
+            </div>
+            <button class="btn-primary" id="saveStoreBtn" onclick="saveNewStore()">Add Store</button>
+            <button onclick="closeAddStoreModal()">Cancel</button>
+            <div id="addStoreMsg" style="margin-top: 10px; font-weight: bold;"></div>
+        </div>
+    </div>
+
+    <!-- Delete Store Modal -->
+    <div id="deleteStoreModal" class="modal">
+        <div class="modal-content">
+            <h2>⚠️ Delete Store?</h2>
+            <p>Deleting "<span id="deleteStoreNameDisplay" style="font-weight: bold;"></span>" will permanently delete this store and ALL data associated with it, including:</p>
+            <ul>
+                <li>Daily records</li>
+                <li>Inventory transactions</li>
+                <li>Purchases</li>
+                <li>Sales</li>
+                <li>Expenses</li>
+                <li>Stock adjustments</li>
+                <li>Other store-specific history</li>
+            </ul>
+            <p><strong>This action cannot be undone.</strong></p>
+            <p>Are you sure you want to proceed?</p>
+            
+            <button onclick="closeDeleteModal()">Cancel</button>
+            <button class="btn-danger" id="confirmDeleteBtn" onclick="executeDeleteStore()">Delete Store</button>
+            <div id="deleteStoreMsg" style="margin-top: 10px; font-weight: bold;"></div>
+        </div>
+    </div>
     
     <script src="js/app.js"></script>
     <script>
-        document.addEventListener('DOMContentLoaded', async () => {
-            const tbody = document.querySelector('#storesTable tbody');
-            const stores = await fetchStores();
-            stores.forEach(s => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td>${s.id}</td>
-                    <td><input type="text" id="storeName-${s.id}" value="${s.name}" class="store-name-input"></td>
-                    <td><button class="btn-primary" onclick="updateStore(${s.id})">Save</button></td>
-                `;
-                tbody.appendChild(tr);
-            });
+        let storeToDeleteId = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadStoresList();
         });
+
+        async function loadStoresList() {
+            const tbody = document.querySelector('#storesTable tbody');
+            tbody.innerHTML = '<tr><td colspan="3">Loading...</td></tr>';
+            try {
+                const stores = await fetchStores();
+                tbody.innerHTML = '';
+                if(stores.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="3">No stores found.</td></tr>';
+                    return;
+                }
+                stores.forEach(s => {
+                    const tr = document.createElement('tr');
+                    const safeName = s.name.replace(/'/g, "\\'");
+                    tr.innerHTML = `
+                        <td>${s.id}</td>
+                        <td><input type="text" id="storeName-${s.id}" value="${s.name}" class="store-name-input"></td>
+                        <td>
+                            <button class="btn-primary" onclick="updateStore(${s.id})">Save</button>
+                            <button class="btn-danger" onclick="confirmDeleteStore(${s.id}, '${safeName}')">Delete</button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (e) {
+                tbody.innerHTML = '<tr><td colspan="3" class="error">Failed to load stores.</td></tr>';
+            }
+        }
 
         async function updateStore(id) {
             const newName = document.getElementById(`storeName-${id}`).value;
@@ -72,11 +156,100 @@
             }
             setTimeout(() => msg.textContent="", 3000);
         }
+
+        function openAddStoreModal() {
+            document.getElementById('newStoreName').value = '';
+            document.getElementById('addStoreMsg').innerHTML = '';
+            document.getElementById('addStoreModal').style.display = 'block';
+        }
+
+        function closeAddStoreModal() {
+            document.getElementById('addStoreModal').style.display = 'none';
+        }
+
+        async function saveNewStore() {
+            const name = document.getElementById('newStoreName').value.trim();
+            const msg = document.getElementById('addStoreMsg');
+            const btn = document.getElementById('saveStoreBtn');
+            
+            if (!name) {
+                msg.innerHTML = '<span class="error-msg">Store name cannot be empty.</span>';
+                return;
+            }
+            
+            btn.disabled = true;
+            msg.innerHTML = 'Saving...';
+            
+            try {
+                const res = await fetch('/api/stores', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: name })
+                });
+                
+                if (res.ok) {
+                    msg.innerHTML = '<span class="success-msg">Store created successfully!</span>';
+                    setTimeout(() => {
+                        closeAddStoreModal();
+                        loadStoresList();
+                    }, 1000);
+                } else {
+                    msg.innerHTML = '<span class="error-msg">Error: ' + await res.text() + '</span>';
+                }
+            } catch (e) {
+                msg.innerHTML = '<span class="error-msg">Network error.</span>';
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        function confirmDeleteStore(id, name) {
+            storeToDeleteId = id;
+            document.getElementById('deleteStoreNameDisplay').textContent = name;
+            document.getElementById('deleteStoreMsg').innerHTML = '';
+            document.getElementById('deleteStoreModal').style.display = 'block';
+        }
+
+        function closeDeleteModal() {
+            storeToDeleteId = null;
+            document.getElementById('deleteStoreModal').style.display = 'none';
+        }
+
+        async function executeDeleteStore() {
+            if (!storeToDeleteId) return;
+            
+            const msg = document.getElementById('deleteStoreMsg');
+            const btn = document.getElementById('confirmDeleteBtn');
+            
+            btn.disabled = true;
+            msg.innerHTML = 'Deleting...';
+            
+            try {
+                const res = await fetch(`/api/stores/${storeToDeleteId}`, {
+                    method: 'DELETE'
+                });
+                
+                if (res.ok) {
+                    msg.innerHTML = '<span class="success-msg">Store deleted successfully!</span>';
+                    setTimeout(() => {
+                        closeDeleteModal();
+                        loadStoresList();
+                    }, 1000);
+                } else {
+                    msg.innerHTML = '<span class="error-msg">Error: ' + await res.text() + '</span>';
+                }
+            } catch (e) {
+                msg.innerHTML = '<span class="error-msg">Network error.</span>';
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        // Window click to close modals
+        window.onclick = function(event) {
+            if (event.target == document.getElementById('addStoreModal')) closeAddStoreModal();
+            if (event.target == document.getElementById('deleteStoreModal')) closeDeleteModal();
+        }
     </script>
-    <style>
-        .store-name-input { width: 100%; box-sizing: border-box; padding: 5px; }
-        .success { color: green; font-weight: bold; }
-        .error { color: red; font-weight: bold; }
-    </style>
 </body>
 </html>

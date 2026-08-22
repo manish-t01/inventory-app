@@ -19,4 +19,5 @@ public interface DailyRecordItemRepository extends JpaRepository<DailyRecordItem
         @Param("date") LocalDate date
     );
     void deleteByDailyRecordIdAndProductVariantId(Long dailyRecordId, Long productVariantId);
+    void deleteByDailyRecordId(Long dailyRecordId);
 }

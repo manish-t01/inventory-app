@@ -32,4 +32,29 @@ public class StoreController {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
+
+    @PostMapping
+    public ResponseEntity<?> createStore(@RequestBody StoreDTO dto) {
+        try {
+            Store store = storeService.createStore(dto.getName());
+            return ResponseEntity.status(201).body(store);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> deleteStore(@PathVariable Long id) {
+        try {
+            storeService.deleteStore(id);
+            return ResponseEntity.ok().build();
+        } catch (RuntimeException e) {
+            if (e.getMessage().equals("Store not found")) {
+                return ResponseEntity.notFound().build();
+            }
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(e.getMessage());
+        }
+    }
 }

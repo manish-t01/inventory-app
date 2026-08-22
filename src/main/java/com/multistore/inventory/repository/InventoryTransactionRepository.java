@@ -6,4 +6,5 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface InventoryTransactionRepository extends JpaRepository<InventoryTransaction, Long> {
     void deleteByReferenceIdAndProductVariantId(String referenceId, Long productVariantId);
+    void deleteByStoreId(Long storeId);
 }
