@@ -3,12 +3,47 @@
 <head>
     <meta charset="UTF-8">
     <title>Daily Entry - Inventory</title>
-    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/style.css?v=1.2">
     <style>
         .split-container { display: flex; gap: 20px; }
-        .image-panel { width: 300px; flex-shrink: 0; background: #eee; padding: 10px; border-radius: 5px; }
-        .data-panel { flex-grow: 1; }
+        .image-panel { 
+            width: 300px; 
+            flex-shrink: 0; 
+            background: #eee; 
+            padding: 10px; 
+            border-radius: 5px; 
+            transition: width 0.25s ease, padding 0.25s ease;
+            overflow: hidden;
+        }
+        .image-panel.collapsed {
+            width: 45px;
+            padding: 10px 5px;
+        }
+        .data-panel { 
+            flex-grow: 1; 
+            min-width: 0; 
+        }
         #uploadedImage { max-width: 100%; display: none; }
+        
+        #sourceImageToggle {
+            background: none; 
+            border: none; 
+            font-size: 1.17em; 
+            font-weight: bold; 
+            cursor: pointer; 
+            padding: 0; 
+            display: flex; 
+            align-items: center; 
+            gap: 5px; 
+            color: #2c3e50;
+            white-space: nowrap;
+        }
+        .image-panel.collapsed #sourceImageText {
+            display: none;
+        }
+        .image-panel.collapsed #sourceImageIcon {
+            margin: 0 auto;
+        }
     </style>
 </head>
 <body>
@@ -26,12 +61,17 @@
     <div class="main-content">
         <h1 id="pageTitle">New Daily Record</h1>
         <div class="split-container">
-            <div class="image-panel">
-                <h3>Source Image</h3>
-                <input type="file" id="imageUpload" accept="image/png, image/jpeg">
-                <div style="margin-top: 15px;">
-                    <img id="uploadedImage" src="" alt="Preview">
-                    <p id="noImageText">No image uploaded.</p>
+            <div class="image-panel collapsed">
+                <button type="button" id="sourceImageToggle" aria-expanded="false" aria-controls="sourceImageContent">
+                    <span id="sourceImageIcon">▶</span>
+                    <span id="sourceImageText">Source Image</span>
+                </button>
+                <div id="sourceImageContent" hidden style="margin-top: 15px;" class="source-image-content">
+                    <input type="file" id="imageUpload" accept="image/png, image/jpeg" multiple>
+                    <div id="sourceImageGrid" class="source-image-grid">
+                        <!-- Thumbnails will be injected here -->
+                    </div>
+                    <p id="noImageText" style="margin-top:15px;">No image uploaded.</p>
                 </div>
             </div>
             
@@ -65,24 +105,26 @@
                     </div>
                 </div>
 
-                <table id="entryTable">
-                    <thead>
-                        <tr>
-                            <th>Product</th>
-                            <th>Size</th>
-                            <th>Opening</th>
-                            <th>Received</th>
-                            <th>Total</th>
-                            <th>Sold</th>
-                            <th>Closing</th>
-                            <th>Price</th>
-                            <th>Amount</th>
-                            <th>Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                    </tbody>
-                </table>
+                <div class="entry-table-container">
+                    <table id="entryTable">
+                        <thead>
+                            <tr>
+                                <th>Product</th>
+                                <th>Size</th>
+                                <th>Opening</th>
+                                <th>Received</th>
+                                <th>Total</th>
+                                <th>Sold</th>
+                                <th>Closing</th>
+                                <th>Price</th>
+                                <th>Amount</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        </tbody>
+                    </table>
+                </div>
 
                 <div style="margin-top: 20px;">
                     <button class="btn-primary" id="saveBtn" onclick="saveRecord()">Save Daily Record</button>
@@ -92,7 +134,12 @@
         </div>
     </div>
     
+    <div id="imagePreviewModal" class="image-preview-modal">
+        <button type="button" id="closeImagePreview" class="image-preview-close" aria-label="Close image preview">&times;</button>
+        <img id="imagePreview" class="image-preview-image" alt="Source image preview" src="">
+    </div>
+
     <script src="js/app.js"></script>
-    <script src="js/daily-entry.js"></script>
+    <script src="js/daily-entry.js?v=1.5"></script>
 </body>
 </html>

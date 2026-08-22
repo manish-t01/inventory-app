@@ -1,7 +1,9 @@
 package com.multistore.inventory.service;
 
 import com.multistore.inventory.entity.DailyRecord;
+import com.multistore.inventory.entity.DailyRecordImage;
 import com.multistore.inventory.repository.DailyRecordRepository;
+import com.multistore.inventory.repository.DailyRecordImageRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
@@ -11,6 +13,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -18,9 +22,11 @@ public class FileStorageService {
 
     private final Path fileStorageLocation;
     private final DailyRecordRepository dailyRecordRepository;
+    private final DailyRecordImageRepository dailyRecordImageRepository;
 
-    public FileStorageService(DailyRecordRepository dailyRecordRepository) {
+    public FileStorageService(DailyRecordRepository dailyRecordRepository, DailyRecordImageRepository dailyRecordImageRepository) {
         this.dailyRecordRepository = dailyRecordRepository;
+        this.dailyRecordImageRepository = dailyRecordImageRepository;
         this.fileStorageLocation = Paths.get("uploads/daily-records").toAbsolutePath().normalize();
 
         try {
@@ -31,6 +37,20 @@ public class FileStorageService {
     }
 
     public String storeFile(Long dailyRecordId, MultipartFile file) {
+        return storeSingleFile(dailyRecordId, file, true);
+    }
+
+    public List<String> storeFiles(Long dailyRecordId, MultipartFile[] files) {
+        List<String> fileNames = new ArrayList<>();
+        for (MultipartFile file : files) {
+            if (!file.isEmpty()) {
+                fileNames.add(storeSingleFile(dailyRecordId, file, false));
+            }
+        }
+        return fileNames;
+    }
+
+    private String storeSingleFile(Long dailyRecordId, MultipartFile file, boolean isLegacy) {
         String originalFileName = StringUtils.cleanPath(file.getOriginalFilename());
         
         try {
@@ -52,15 +72,63 @@ public class FileStorageService {
             Path targetLocation = this.fileStorageLocation.resolve(newFileName);
             Files.copy(file.getInputStream(), targetLocation, StandardCopyOption.REPLACE_EXISTING);
 
+            String imagePath = "uploads/daily-records/" + newFileName;
+
             DailyRecord record = dailyRecordRepository.findById(dailyRecordId)
                 .orElseThrow(() -> new RuntimeException("Daily record not found"));
             
-            record.setSourceImagePath("uploads/daily-records/" + newFileName);
-            dailyRecordRepository.save(record);
+            if (isLegacy) {
+                record.setSourceImagePath(imagePath);
+                dailyRecordRepository.save(record);
+            } else {
+                DailyRecordImage image = new DailyRecordImage();
+                image.setDailyRecord(record);
+                image.setImagePath(imagePath);
+                dailyRecordImageRepository.save(image);
+            }
 
             return newFileName;
         } catch (IOException ex) {
             throw new RuntimeException("Could not store file " + originalFileName + ". Please try again!", ex);
+        }
+    }
+
+    public void deleteImage(Long dailyRecordId, String imageId) {
+        DailyRecord record = dailyRecordRepository.findById(dailyRecordId)
+                .orElseThrow(() -> new RuntimeException("Daily record not found"));
+
+        if ("legacy".equals(imageId)) {
+            String path = record.getSourceImagePath();
+            if (path != null) {
+                deletePhysicalFile(path);
+                record.setSourceImagePath(null);
+                dailyRecordRepository.save(record);
+            }
+        } else {
+            Long imgId = Long.parseLong(imageId);
+            DailyRecordImage image = dailyRecordImageRepository.findById(imgId)
+                    .orElseThrow(() -> new RuntimeException("Image not found"));
+            
+            if (!image.getDailyRecord().getId().equals(dailyRecordId)) {
+                throw new RuntimeException("Image does not belong to this record");
+            }
+            
+            deletePhysicalFile(image.getImagePath());
+            dailyRecordImageRepository.delete(image);
+        }
+    }
+
+    private void deletePhysicalFile(String imagePath) {
+        try {
+            // imagePath is "uploads/daily-records/filename.jpg"
+            // We need to resolve against the project root or similar. 
+            // fileStorageLocation is "uploads/daily-records" absolute path.
+            String fileName = Paths.get(imagePath).getFileName().toString();
+            Path filePath = this.fileStorageLocation.resolve(fileName).normalize();
+            Files.deleteIfExists(filePath);
+        } catch (Exception e) {
+            // Log and ignore to prevent crashes if file doesn't exist
+            System.err.println("Failed to delete physical file: " + imagePath);
         }
     }
 }

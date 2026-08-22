@@ -1,6 +1,10 @@
 let allProducts = [];
 let allVariants = {};
 let editId = null;
+let imageFiles = new DataTransfer();
+let existingImages = [];
+let legacyImage = null;
+let imagesToDelete = [];
 
 document.addEventListener('DOMContentLoaded', async () => {
     // Check for Edit Mode
@@ -26,16 +30,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 2. Image upload preview
     const imageUpload = document.getElementById('imageUpload');
     imageUpload.addEventListener('change', function(e) {
-        if(e.target.files && e.target.files[0]) {
-            const reader = new FileReader();
-            reader.onload = function(evt) {
-                document.getElementById('uploadedImage').src = evt.target.result;
-                document.getElementById('uploadedImage').style.display = 'block';
-                document.getElementById('noImageText').style.display = 'none';
+        if(e.target.files && e.target.files.length > 0) {
+            for(let i = 0; i < e.target.files.length; i++) {
+                imageFiles.items.add(e.target.files[i]);
             }
-            reader.readAsDataURL(e.target.files[0]);
+            imageUpload.value = ''; // Reset so the same file can be selected again
+            renderImagePreviews();
         }
     });
+
+    // Setup Image Preview Modal Close
+    const closeBtn = document.getElementById('closeImagePreview');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            closeImagePreview();
+        });
+    }
 
     // 3. Load Products for dropdown
     allProducts = await fetchProducts();
@@ -75,6 +87,188 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 let rowIndex = 0;
 
+function renderImagePreviews() {
+    const grid = document.getElementById('sourceImageGrid');
+    grid.innerHTML = '';
+    
+    let hasImages = false;
+
+    // Render Legacy Image
+    if (legacyImage) {
+        hasImages = true;
+        const isDeleted = imagesToDelete.includes('legacy');
+        
+        const container = document.createElement('div');
+        container.className = 'image-thumbnail-container';
+        
+        const img = document.createElement('img');
+        img.src = getImageUrl(legacyImage);
+        img.className = 'source-image-thumbnail' + (isDeleted ? ' thumbnail-pending-delete' : '');
+        img.onclick = () => openImagePreview(legacyImage);
+        
+        const delBtn = document.createElement('button');
+        delBtn.className = 'image-delete-btn';
+        delBtn.innerHTML = isDeleted ? '&#8634;' : '&times;'; // Undo or Delete
+        delBtn.title = isDeleted ? 'Undo Deletion' : 'Mark for Deletion';
+        delBtn.onclick = () => toggleImageDeletion('legacy');
+        
+        container.appendChild(img);
+        container.appendChild(delBtn);
+        grid.appendChild(container);
+    }
+
+    // Render Existing Images
+    existingImages.forEach(imgData => {
+        hasImages = true;
+        const isDeleted = imagesToDelete.includes(imgData.id.toString());
+        
+        const container = document.createElement('div');
+        container.className = 'image-thumbnail-container';
+        
+        const img = document.createElement('img');
+        img.src = getImageUrl(imgData.imagePath);
+        img.className = 'source-image-thumbnail' + (isDeleted ? ' thumbnail-pending-delete' : '');
+        img.onclick = () => openImagePreview(imgData.imagePath);
+        
+        const delBtn = document.createElement('button');
+        delBtn.className = 'image-delete-btn';
+        delBtn.innerHTML = isDeleted ? '&#8634;' : '&times;'; // Undo or Delete
+        delBtn.title = isDeleted ? 'Undo Deletion' : 'Mark for Deletion';
+        delBtn.onclick = () => toggleImageDeletion(imgData.id.toString());
+        
+        container.appendChild(img);
+        container.appendChild(delBtn);
+        grid.appendChild(container);
+    });
+
+    // Render New Files
+    Array.from(imageFiles.files).forEach((file, index) => {
+        hasImages = true;
+        const container = document.createElement('div');
+        container.className = 'image-thumbnail-container';
+        
+        const img = document.createElement('img');
+        img.className = 'source-image-thumbnail';
+        
+        const previewUrl = URL.createObjectURL(file);
+        img.src = previewUrl;
+        img.onclick = () => openImagePreview(previewUrl);
+        
+        const delBtn = document.createElement('button');
+        delBtn.className = 'image-delete-btn';
+        delBtn.innerHTML = '&times;';
+        delBtn.title = 'Remove Upload';
+        delBtn.onclick = () => {
+            removeNewFile(index);
+        };
+        
+        container.appendChild(img);
+        container.appendChild(delBtn);
+        grid.appendChild(container);
+    });
+
+    if (hasImages) {
+        document.getElementById('noImageText').style.display = 'none';
+        
+        const toggleBtn = document.getElementById('sourceImageToggle');
+        if(toggleBtn && toggleBtn.getAttribute("aria-expanded") !== "true") {
+            toggleBtn.setAttribute("aria-expanded", "true");
+            document.getElementById('sourceImageContent').hidden = false;
+            document.getElementById('sourceImageIcon').textContent = '◀';
+            document.querySelector('.image-panel').classList.remove('collapsed');
+        }
+    } else {
+        document.getElementById('noImageText').style.display = 'block';
+    }
+}
+
+function toggleImageDeletion(id) {
+    if (imagesToDelete.includes(id)) {
+        imagesToDelete = imagesToDelete.filter(i => i !== id);
+    } else {
+        imagesToDelete.push(id);
+    }
+    renderImagePreviews();
+}
+
+function removeNewFile(index) {
+    const newTransfer = new DataTransfer();
+    Array.from(imageFiles.files).forEach((f, i) => {
+        if (i !== index) newTransfer.items.add(f);
+    });
+    imageFiles = newTransfer;
+    renderImagePreviews();
+}
+
+
+function getImageUrl(imagePath) {
+    if (!imagePath) return "";
+    if (imagePath.startsWith("blob:") || imagePath.startsWith("data:")) {
+        return imagePath;
+    }
+    if (imagePath.startsWith("/")) {
+        return imagePath;
+    }
+    return "/" + imagePath;
+}
+
+function openImagePreview(imagePath) {
+    const modal = document.getElementById("imagePreviewModal");
+    const image = document.getElementById("imagePreview");
+
+    if (!modal || !image) {
+        console.error("Image preview elements not found.");
+        return;
+    }
+
+    const imageUrl = getImageUrl(imagePath);
+    console.log("Opening source image:", imageUrl);
+
+    image.src = imageUrl;
+
+    image.onerror = function() {
+        console.error("Failed to load source image:", imageUrl);
+    };
+
+    modal.classList.add("active");
+    modal.style.display = "flex";
+}
+
+function closeImagePreview() {
+    const modal = document.getElementById("imagePreviewModal");
+    if (!modal) return;
+
+    modal.style.display = "none";
+    modal.classList.remove("active");
+
+    const previewImage = document.getElementById("imagePreview");
+    if (previewImage) {
+        previewImage.removeAttribute("src");
+    }
+}
+
+
+// Close modal when clicking outside the image
+document.getElementById('imagePreviewModal').addEventListener('click', (e) => {
+    if (e.target.id === 'imagePreviewModal') {
+        closeImagePreview();
+    }
+});
+
+const previewImgEl = document.getElementById('imagePreview');
+if (previewImgEl) {
+    previewImgEl.addEventListener('click', (e) => {
+        e.stopPropagation();
+    });
+}
+
+// Close modal on ESC
+window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        closeImagePreview();
+    }
+});
+
 async function loadExistingRecord(id) {
     try {
         const res = await fetch(`/api/daily-records/${id}`);
@@ -85,10 +279,12 @@ async function loadExistingRecord(id) {
         document.getElementById('recordDate').value = record.recordDate;
         
         if (record.sourceImagePath) {
-            document.getElementById('uploadedImage').src = '/' + record.sourceImagePath;
-            document.getElementById('uploadedImage').style.display = 'block';
-            document.getElementById('noImageText').style.display = 'none';
+            legacyImage = record.sourceImagePath;
         }
+        if (record.additionalImages && record.additionalImages.length > 0) {
+            existingImages = record.additionalImages;
+        }
+        renderImagePreviews();
 
         const tbody = document.querySelector('#entryTable tbody');
         for (const item of record.items) {
@@ -171,18 +367,21 @@ async function addRowFromSelect() {
     tr.dataset.variantId = variantId;
     tr.dataset.suggestedOpening = suggestedOpening;
     
+    const openingVal = suggestedOpening === 0 ? '' : suggestedOpening;
+    const priceVal = price == 0 ? '' : price;
+
     tr.innerHTML = `
         <td>${productName}</td>
         <td>${size}</td>
         <td>
-            <input type="number" class="opening" value="${suggestedOpening}" min="0" oninput="calculateRow(${rowIndex}); checkOpening(${rowIndex});">
+            <input type="number" class="opening" value="${openingVal}" min="0" oninput="calculateRow(${rowIndex}); checkOpening(${rowIndex});">
             <span class="warning-icon" style="color:orange;display:none;" title="Differs from previous closing">⚠</span>
         </td>
-        <td><input type="number" class="received" value="0" min="0" oninput="calculateRow(${rowIndex})"></td>
+        <td><input type="number" class="received" value="" min="0" oninput="calculateRow(${rowIndex})"></td>
         <td class="total">${suggestedOpening}</td>
-        <td><input type="number" class="sold" value="0" min="0" oninput="calculateRow(${rowIndex})"></td>
+        <td><input type="number" class="sold" value="" min="0" oninput="calculateRow(${rowIndex})"></td>
         <td class="closing">${suggestedOpening}</td>
-        <td><input type="number" class="price" value="${price}" min="0" oninput="calculateRow(${rowIndex})"></td>
+        <td><input type="number" class="price" value="${priceVal}" min="0" oninput="calculateRow(${rowIndex})"></td>
         <td class="amount">0</td>
         <td><button onclick="removeRow(${rowIndex})">Delete</button></td>
     `;
@@ -211,10 +410,15 @@ function checkOpening(id) {
 
 function calculateRow(id) {
     const row = document.getElementById(`row-${id}`);
-    const opening = parseFloat(row.querySelector('.opening').value) || 0;
-    const received = parseFloat(row.querySelector('.received').value) || 0;
-    const sold = parseFloat(row.querySelector('.sold').value) || 0;
-    const price = parseFloat(row.querySelector('.price').value) || 0;
+    const openingInput = row.querySelector('.opening').value;
+    const receivedInput = row.querySelector('.received').value;
+    const soldInput = row.querySelector('.sold').value;
+    const priceInput = row.querySelector('.price').value;
+
+    const opening = openingInput === "" ? 0 : parseFloat(openingInput);
+    const received = receivedInput === "" ? 0 : parseFloat(receivedInput);
+    const sold = soldInput === "" ? 0 : parseFloat(soldInput);
+    const price = priceInput === "" ? 0 : parseFloat(priceInput);
     
     const total = opening + received;
     const closing = total - sold;
@@ -238,7 +442,6 @@ function calculateRow(id) {
 async function saveRecord() {
     const storeId = document.getElementById('storeSelect').value;
     const recordDate = document.getElementById('recordDate').value;
-    const imageUpload = document.getElementById('imageUpload');
     const msgEl = document.getElementById('saveMessage');
     const saveBtn = document.getElementById('saveBtn');
     
@@ -261,10 +464,16 @@ async function saveRecord() {
     
     rows.forEach(row => {
         const variantId = row.dataset.variantId;
-        const opening = parseInt(row.querySelector('.opening').value) || 0;
-        const received = parseInt(row.querySelector('.received').value) || 0;
-        const sold = parseInt(row.querySelector('.sold').value) || 0;
-        const price = parseFloat(row.querySelector('.price').value) || 0;
+        
+        const openingInput = row.querySelector('.opening').value;
+        const receivedInput = row.querySelector('.received').value;
+        const soldInput = row.querySelector('.sold').value;
+        const priceInput = row.querySelector('.price').value;
+
+        const opening = openingInput === "" ? 0 : parseInt(openingInput);
+        const received = receivedInput === "" ? 0 : parseInt(receivedInput);
+        const sold = soldInput === "" ? 0 : parseInt(soldInput);
+        const price = priceInput === "" ? 0 : parseFloat(priceInput);
         const total = opening + received;
         
         if(opening < 0 || received < 0 || sold < 0 || price < 0 || sold > total) {
@@ -316,12 +525,19 @@ async function saveRecord() {
         if (response.ok) {
             const savedRecord = await response.json();
             
-            // Now upload image if present
-            if(imageUpload.files && imageUpload.files[0]) {
+            // Delete marked images
+            for(let id of imagesToDelete) {
+                await fetch(`/api/daily-records/${savedRecord.id}/image/${id}`, { method: 'DELETE' });
+            }
+            
+            // Upload new images
+            if(imageFiles.files.length > 0) {
                 const formData = new FormData();
-                formData.append("file", imageUpload.files[0]);
+                for(let i=0; i<imageFiles.files.length; i++) {
+                    formData.append("files", imageFiles.files[i]);
+                }
                 
-                await fetch(`/api/daily-records/${savedRecord.id}/image`, {
+                await fetch(`/api/daily-records/${savedRecord.id}/images`, {
                     method: 'POST',
                     body: formData
                 });
@@ -334,9 +550,11 @@ async function saveRecord() {
                 // Clear table only if new
                 document.querySelector('#entryTable tbody').innerHTML = '';
                 rowIndex = 0;
-                document.getElementById('uploadedImage').style.display = 'none';
-                document.getElementById('noImageText').style.display = 'block';
-                imageUpload.value = "";
+                imageFiles = new DataTransfer();
+                existingImages = [];
+                legacyImage = null;
+                imagesToDelete = [];
+                renderImagePreviews();
             } else {
                 setTimeout(() => { window.location.href = 'daily-records.html'; }, 1000);
             }
@@ -351,4 +569,23 @@ async function saveRecord() {
     } finally {
         saveBtn.disabled = false;
     }
+}
+
+const sourceImageToggle = document.getElementById("sourceImageToggle");
+if (sourceImageToggle) {
+    sourceImageToggle.addEventListener("click", () => {
+        const isExpanded = sourceImageToggle.getAttribute("aria-expanded") === "true";
+        sourceImageToggle.setAttribute("aria-expanded", String(!isExpanded));
+        const content = document.getElementById("sourceImageContent");
+        content.hidden = isExpanded;
+        
+        const imagePanel = document.querySelector('.image-panel');
+        if (isExpanded) {
+            imagePanel.classList.add('collapsed');
+            document.getElementById("sourceImageIcon").textContent = "▶";
+        } else {
+            imagePanel.classList.remove('collapsed');
+            document.getElementById("sourceImageIcon").textContent = "◀";
+        }
+    });
 }

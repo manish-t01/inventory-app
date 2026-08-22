@@ -3,6 +3,7 @@ package com.multistore.inventory.controller;
 import com.multistore.inventory.dto.DailyRecordDTO;
 import com.multistore.inventory.dto.DailyRecordItemDTO;
 import com.multistore.inventory.entity.DailyRecord;
+import com.multistore.inventory.entity.DailyRecordImage;
 import com.multistore.inventory.entity.DailyRecordItem;
 import com.multistore.inventory.service.InventoryService;
 import com.multistore.inventory.service.FileStorageService;
@@ -95,13 +96,43 @@ public class InventoryController {
         }
     }
     
+    @PostMapping("/{id}/images")
+    public ResponseEntity<?> uploadImages(@PathVariable Long id, @RequestParam("files") MultipartFile[] files) {
+        try {
+            List<String> fileNames = fileStorageService.storeFiles(id, files);
+            return ResponseEntity.ok(fileNames);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @DeleteMapping("/{id}/image/{imageId}")
+    public ResponseEntity<?> deleteImage(@PathVariable Long id, @PathVariable String imageId) {
+        try {
+            fileStorageService.deleteImage(id, imageId);
+            return ResponseEntity.ok("Deleted");
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+    
     public static class RecordResponse {
         public Long id;
         public Long storeId;
         public LocalDate recordDate;
         public String notes;
         public String sourceImagePath;
+        public List<ImageDTO> additionalImages;
         public List<DailyRecordItemDTO> items;
+
+        public static class ImageDTO {
+            public Long id;
+            public String imagePath;
+            public ImageDTO(Long id, String imagePath) {
+                this.id = id;
+                this.imagePath = imagePath;
+            }
+        }
 
         public RecordResponse(DailyRecord record, List<DailyRecordItem> itemsList) {
             this.id = record.getId();
@@ -109,6 +140,11 @@ public class InventoryController {
             this.recordDate = record.getRecordDate();
             this.notes = record.getNotes();
             this.sourceImagePath = record.getSourceImagePath();
+            if (record.getAdditionalImages() != null) {
+                this.additionalImages = record.getAdditionalImages().stream()
+                        .map(img -> new ImageDTO(img.getId(), img.getImagePath()))
+                        .collect(Collectors.toList());
+            }
             this.items = itemsList.stream().map(item -> {
                 DailyRecordItemDTO dto = new DailyRecordItemDTO();
                 dto.setProductVariantId(item.getProductVariant().getId());
