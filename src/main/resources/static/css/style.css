@@ -236,3 +236,68 @@ button:hover { background-color: #7f8c8d; }
     height: auto;
     object-fit: contain;
 }
+
+/* Delete Modal Styles */
+.delete-modal-overlay {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    display: none; /* Initially hidden */
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 100000;
+}
+
+.delete-modal {
+    background: white;
+    padding: 30px;
+    border-radius: 8px;
+    max-width: 450px;
+    width: 90%;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    text-align: center;
+}
+
+.delete-modal h2 {
+    margin-top: 0;
+    color: #c9302c;
+    font-size: 24px;
+}
+
+.delete-modal p {
+    font-size: 16px;
+    color: #333;
+    line-height: 1.5;
+    margin-bottom: 25px;
+}
+
+.delete-modal-actions {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+}
+
+.btn-danger {
+    background-color: #d9534f;
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+}
+.btn-danger:hover { background-color: #c9302c; }
+.btn-danger:disabled { background-color: #e09f9d; cursor: not-allowed; }
+
+.btn-secondary {
+    background-color: #6c757d;
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+}
+.btn-secondary:hover { background-color: #5a6268; }

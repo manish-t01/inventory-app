@@ -206,4 +206,18 @@ public class InventoryService {
             saleRepository.save(sale);
         }
     }
+
+    @Transactional
+    public void deleteDailyRecord(Long id) {
+        DailyRecord record = dailyRecordRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Daily record not found"));
+
+        dailyRecordItemRepository.deleteByDailyRecordId(id);
+
+        String reference = "DAILY_RECORD_" + id;
+        inventoryTransactionRepository.deleteByReferenceId(reference);
+        saleRepository.deleteBySource(reference);
+
+        dailyRecordRepository.delete(record);
+    }
 }

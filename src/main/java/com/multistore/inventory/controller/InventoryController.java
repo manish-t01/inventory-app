@@ -116,6 +116,32 @@ public class InventoryController {
         }
     }
     
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> deleteDailyRecord(@PathVariable Long id) {
+        try {
+            // Find record first to get image paths
+            DailyRecord record = inventoryService.getDailyRecord(id);
+            String legacyPath = record.getSourceImagePath();
+            List<DailyRecordImage> additionalImages = record.getAdditionalImages();
+
+            inventoryService.deleteDailyRecord(id);
+
+            // Clean up files after DB deletion is successful
+            if (legacyPath != null) {
+                fileStorageService.deletePhysicalFile(legacyPath);
+            }
+            if (additionalImages != null) {
+                for (DailyRecordImage img : additionalImages) {
+                    fileStorageService.deletePhysicalFile(img.getImagePath());
+                }
+            }
+
+            return ResponseEntity.ok("{\"success\":true, \"message\":\"Daily record deleted successfully\"}");
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("{\"success\":false, \"message\":\"" + e.getMessage() + "\"}");
+        }
+    }
+
     public static class RecordResponse {
         public Long id;
         public Long storeId;

@@ -34,30 +34,17 @@
     </div>
     
     <script src="js/app.js"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', async () => {
-            const tbody = document.querySelector('#recordsTable tbody');
-            try {
-                const res = await fetch('/api/daily-records');
-                const records = await res.json();
-                records.sort((a,b) => new Date(b.recordDate) - new Date(a.recordDate));
-                records.forEach(r => {
-                    const tr = document.createElement('tr');
-                    tr.innerHTML = `
-                        <td>${r.id}</td>
-                        <td>${r.recordDate}</td>
-                        <td>${r.store.name}</td>
-                        <td>Locked</td>
-                        <td>
-                            <button class="btn-primary" onclick="window.location.href='daily-entry.html?editId=${r.id}'">Edit</button>
-                        </td>
-                    `;
-                    tbody.appendChild(tr);
-                });
-            } catch(e) {
-                console.error("Failed to load records", e);
-            }
-        });
-    </script>
+    <div id="deleteModal" class="delete-modal-overlay" hidden>
+        <div class="delete-modal">
+            <h2>Warning</h2>
+            <p id="deleteModalText">This action will delete the Daily Record for [DATE] from [STORE].<br><br>It will also delete all products, images, inventory transactions, and sales data associated with this record.<br><br>This action cannot be undone.</p>
+            <div class="delete-modal-actions">
+                <button type="button" class="btn-secondary" onclick="closeDeleteModal()">Cancel</button>
+                <button type="button" id="confirmDeleteBtn" class="btn-danger" onclick="executeDeleteRecord()">Delete Record</button>
+            </div>
+        </div>
+    </div>
+    
+    <script src="js/daily-records.js"></script>
 </body>
 </html>

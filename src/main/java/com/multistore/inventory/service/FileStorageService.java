@@ -118,7 +118,7 @@ public class FileStorageService {
         }
     }
 
-    private void deletePhysicalFile(String imagePath) {
+    public void deletePhysicalFile(String imagePath) {
         try {
             // imagePath is "uploads/daily-records/filename.jpg"
             // We need to resolve against the project root or similar. 

@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Print Daily Record - Inventory</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        /* Print specific overrides */
+        body { background: white; margin: 0; padding: 20px; }
+        .print-container { max-width: 100%; margin: 0 auto; font-family: sans-serif; }
+        .print-header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #000; padding-bottom: 10px; }
+        .print-header h1 { margin: 0; font-size: 24px; }
+        .print-header h2 { margin: 5px 0 0; font-size: 18px; font-weight: normal; }
+        .record-info { display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 16px; font-weight: bold; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f4f4f4; }
+        .total-amount-container { text-align: right; font-size: 20px; font-weight: bold; margin-bottom: 30px; border-top: 2px solid #000; padding-top: 10px; }
+        
+        .print-images h3 { border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-bottom: 15px;}
+        .image-gallery { display: flex; flex-wrap: wrap; gap: 15px; }
+        .image-gallery img { max-width: 300px; height: auto; object-fit: contain; border: 1px solid #eee; padding: 5px; }
+        
+        /* A4 Print layout */
+        @page { size: A4; margin: 15mm; }
+        @media print {
+            body { padding: 0; margin: 0; }
+            .print-container { padding: 0; margin: 0; }
+            th { background-color: #eee !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .image-gallery img { page-break-inside: avoid; max-width: 45%; }
+        }
+    </style>
+</head>
+<body>
+    <div class="print-container">
+        <div class="print-header">
+            <h1>MULTI-STORE INVENTORY</h1>
+            <h2>Daily Record</h2>
+        </div>
+        
+        <div class="record-info">
+            <div id="printStore">Store: Loading...</div>
+            <div id="printDate">Date: Loading...</div>
+            <div id="printRecordId">Record ID: Loading...</div>
+        </div>
+
+        <table id="printTable">
+            <thead>
+                <tr>
+                    <th>Product</th>
+                    <th>Size</th>
+                    <th>Opening</th>
+                    <th>Received</th>
+                    <th>Total</th>
+                    <th>Sold</th>
+                    <th>Closing</th>
+                    <th>Price</th>
+                    <th>Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Rows injected via JS -->
+            </tbody>
+        </table>
+
+        <div class="total-amount-container">
+            TOTAL AMOUNT: ₹<span id="printTotalAmount">0.00</span>
+        </div>
+
+        <div class="print-images" id="printImagesContainer" style="display: none;">
+            <h3>Source Images</h3>
+            <div class="image-gallery" id="printImageGallery">
+                <!-- Images injected via JS -->
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const recordId = urlParams.get('id');
+            
+            if (!recordId) {
+                document.body.innerHTML = '<h2>Error: No record ID specified.</h2>';
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/daily-records/${recordId}`);
+                if (!res.ok) throw new Error('Record not found');
+                const record = await res.json();
+                
+                // Fetch store name
+                const storeRes = await fetch(`/api/stores/${record.storeId}`);
+                let storeName = "Unknown Store";
+                if(storeRes.ok) {
+                    const store = await storeRes.json();
+                    storeName = store.name;
+                } else {
+                    // Fallback to fetch all stores
+                    const allStoresRes = await fetch('/api/stores');
+                    const allStores = await allStoresRes.json();
+                    const s = allStores.find(x => x.id === record.storeId);
+                    if(s) storeName = s.name;
+                }
+
+                document.getElementById('printStore').innerText = 'Store: ' + storeName;
+                document.getElementById('printDate').innerText = 'Date: ' + record.recordDate;
+                document.getElementById('printRecordId').innerText = 'Record ID: ' + record.id;
+
+                let allProducts = [];
+                try {
+                    const productsRes = await fetch('/api/products');
+                    allProducts = await productsRes.json();
+                } catch(e){}
+
+                const tbody = document.querySelector('#printTable tbody');
+                let totalAmount = 0;
+                
+                for (const item of record.items) {
+                    let pName = "Unknown";
+                    let sName = "Unknown";
+                    
+                    for(const p of allProducts) {
+                        const vRes = await fetch(`/api/products/${p.id}/variants`);
+                        const vs = await vRes.json();
+                        const found = vs.find(v => v.id === item.productVariantId);
+                        if(found) {
+                            pName = p.name;
+                            sName = found.size;
+                            break;
+                        }
+                    }
+
+                    const opening = item.openingStock || 0;
+                    const received = item.stockReceived || 0;
+                    const total = opening + received;
+                    const sold = item.soldQuantity || 0;
+                    const closing = total - sold;
+                    const price = item.sellingPrice || 0;
+                    const amount = sold * price;
+                    
+                    totalAmount += amount;
+
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${pName}</td>
+                        <td>${sName}</td>
+                        <td>${opening}</td>
+                        <td>${received}</td>
+                        <td>${total}</td>
+                        <td>${sold}</td>
+                        <td>${closing}</td>
+                        <td>${price}</td>
+                        <td>${amount}</td>
+                    `;
+                    tbody.appendChild(tr);
+                }
+                
+                document.getElementById('printTotalAmount').innerText = totalAmount.toFixed(2);
+
+                // Images
+                let imageUrls = [];
+                if (record.sourceImagePath) {
+                    imageUrls.push(record.sourceImagePath.startsWith('/') ? record.sourceImagePath : '/' + record.sourceImagePath);
+                }
+                if (record.additionalImages && record.additionalImages.length > 0) {
+                    record.additionalImages.forEach(img => {
+                        imageUrls.push(img.imagePath.startsWith('/') ? img.imagePath : '/' + img.imagePath);
+                    });
+                }
+
+                if (imageUrls.length > 0) {
+                    document.getElementById('printImagesContainer').style.display = 'block';
+                    const gallery = document.getElementById('printImageGallery');
+                    
+                    let imagesLoaded = 0;
+                    
+                    imageUrls.forEach(url => {
+                        const img = document.createElement('img');
+                        img.src = url;
+                        img.onload = () => {
+                            imagesLoaded++;
+                            if(imagesLoaded === imageUrls.length) {
+                                setTimeout(() => window.print(), 500); // Wait for render
+                            }
+                        };
+                        img.onerror = () => {
+                            imagesLoaded++;
+                            if(imagesLoaded === imageUrls.length) {
+                                setTimeout(() => window.print(), 500);
+                            }
+                        };
+                        gallery.appendChild(img);
+                    });
+                } else {
+                    setTimeout(() => window.print(), 500);
+                }
+                
+            } catch (err) {
+                console.error(err);
+                document.body.innerHTML = `<h2>Failed to load record. Please try again.</h2>`;
+            }
+        });
+    </script>
+</body>
+</html>
