@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Reports - Inventory</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .tabs { display: flex; margin-bottom: 20px; border-bottom: 2px solid #ccc; }
+        .tab { padding: 10px 20px; cursor: pointer; }
+        .tab.active { border-bottom: 2px solid #007bff; font-weight: bold; color: #007bff; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .btn-group { margin-top: 15px; display: flex; gap: 10px; }
+        @media print {
+            .sidebar, .tabs, .entry-header, .btn-group, h1 { display: none !important; }
+            .main-content { margin: 0; padding: 0; }
+            body { background: #fff; }
+            .card { border: 1px solid #000; box-shadow: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <h2>Multi-Store</h2>
+        <ul>
+            <li><a href="index.html">Dashboard</a></li>
+            <li><a href="daily-records.html">Daily Records</a></li>
+            <li><a href="daily-entry.html">Daily Entry</a></li>
+            <li><a href="products.html">Products</a></li>
+            <li><a href="stores.html">Stores</a></li>
+            <li><a href="reports.html" class="active">Reports</a></li>
+        </ul>
+    </div>
+    <div class="main-content">
+        <h1>Reports</h1>
+        
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('daily')">Daily / Custom Period</div>
+        </div>
+
+        <div class="entry-header">
+            <div>
+                <label>Store:</label>
+                <select id="storeSelect">
+                    <option value="">All Stores</option>
+                </select>
+            </div>
+            <div>
+                <label>Start Date:</label>
+                <input type="date" id="startDate">
+            </div>
+            <div>
+                <label>End Date:</label>
+                <input type="date" id="endDate">
+            </div>
+            <div>
+                <button class="btn-primary" onclick="generateReport()">Generate Web Report</button>
+            </div>
+        </div>
+        
+        <div class="btn-group">
+            <button onclick="downloadCSV()">Export CSV</button>
+            <button onclick="downloadPDF()">Download PDF</button>
+            <button onclick="window.print()">Print Report</button>
+        </div>
+        
+        <div id="loading" style="display:none; color: blue; font-weight: bold; margin-top: 10px;">Loading report...</div>
+
+        <div id="aggregatedContent" class="tab-content active" style="margin-top: 20px;">
+            <div id="storeBreakdowns"></div>
+            
+            <h2 style="margin-top:40px; border-top: 2px solid #ccc; padding-top: 20px;">GRAND TOTALS</h2>
+            <div class="cards" style="margin-bottom: 20px;">
+                <div class="card"><h3>Combined Units Sold</h3><p id="grandSold">0</p></div>
+                <div class="card"><h3>Combined Sales</h3><p id="grandSales">₹0</p></div>
+            </div>
+        </div>
+
+    </div>
+    
+    <script src="js/app.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const storeSelect = document.getElementById('storeSelect');
+            const stores = await fetchStores();
+            stores.forEach(store => {
+                const option = document.createElement('option');
+                option.value = store.id;
+                option.textContent = store.name;
+                storeSelect.appendChild(option);
+            });
+            const today = new Date();
+            const lastWeek = new Date(today);
+            lastWeek.setDate(today.getDate() - 7);
+            
+            document.getElementById('startDate').valueAsDate = lastWeek;
+            document.getElementById('endDate').valueAsDate = today;
+        });
+
+        function switchTab(tab) {
+            // Keep single tab for simplicity since date ranges can cover all reports
+        }
+
+        async function generateReport() {
+            const storeId = document.getElementById('storeSelect').value;
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            
+            if (!startDate || !endDate) return;
+            
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('storeBreakdowns').innerHTML = '';
+            
+            try {
+                let url = `/api/reports/period?startDate=${startDate}&endDate=${endDate}`;
+                if(storeId) url += `&storeId=${storeId}`;
+                
+                const res = await fetch(url);
+                if (!res.ok) throw new Error("Failed to fetch");
+                const data = await res.json();
+                
+                let html = "";
+                data.storeReports.forEach(store => {
+                    html += `
+                    <div style="margin-bottom: 30px;">
+                        <h3>Store: ${store.storeName}</h3>
+                        <div class="cards">
+                            <div class="card"><h4>Period Opening</h4><p>${store.openingStock}</p></div>
+                            <div class="card"><h4>Received</h4><p>${store.stockReceived}</p></div>
+                            <div class="card"><h4>Units Sold</h4><p>${store.unitsSold}</p></div>
+                            <div class="card"><h4>Period Closing</h4><p>${store.closingStock}</p></div>
+                            <div class="card"><h4>Sales Amount</h4><p>₹${store.totalSales}</p></div>
+                        </div>
+                    </div>`;
+                });
+                
+                document.getElementById('storeBreakdowns').innerHTML = html;
+                document.getElementById('grandSold').textContent = data.grandTotalUnitsSold || 0;
+                document.getElementById('grandSales').textContent = "₹" + (data.grandTotalSales || 0);
+            } catch(e) {
+                alert("Error loading report");
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+
+        function downloadCSV() {
+            const storeId = document.getElementById('storeSelect').value;
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            let url = `/api/reports/period/csv?startDate=${startDate}&endDate=${endDate}`;
+            if(storeId) url += `&storeId=${storeId}`;
+            window.location.href = url;
+        }
+
+        function downloadPDF() {
+            const storeId = document.getElementById('storeSelect').value;
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            let url = `/api/reports/period/pdf?reportType=PERIOD&startDate=${startDate}&endDate=${endDate}`;
+            if(storeId) url += `&storeId=${storeId}`;
+            window.location.href = url;
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Stores - Inventory</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="sidebar">
+        <h2>Multi-Store</h2>
+        <ul>
+            <li><a href="index.html">Dashboard</a></li>
+            <li><a href="daily-records.html">Daily Records</a></li>
+            <li><a href="daily-entry.html">Daily Entry</a></li>
+            <li><a href="products.html">Products</a></li>
+            <li><a href="stores.html" class="active">Stores</a></li>
+            <li><a href="reports.html">Reports</a></li>
+        </ul>
+    </div>
+    <div class="main-content">
+        <h1>Manage Stores</h1>
+        <p>Store IDs are permanent to ensure historical records remain linked correctly. You may change their names below.</p>
+        <table id="storesTable">
+            <thead>
+                <tr>
+                    <th>Store ID</th>
+                    <th>Store Name</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+        <p id="storeMsg"></p>
+    </div>
+    
+    <script src="js/app.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const tbody = document.querySelector('#storesTable tbody');
+            const stores = await fetchStores();
+            stores.forEach(s => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${s.id}</td>
+                    <td><input type="text" id="storeName-${s.id}" value="${s.name}" class="store-name-input"></td>
+                    <td><button class="btn-primary" onclick="updateStore(${s.id})">Save</button></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        });
+
+        async function updateStore(id) {
+            const newName = document.getElementById(`storeName-${id}`).value;
+            const msg = document.getElementById('storeMsg');
+            msg.textContent = "Saving...";
+            try {
+                const res = await fetch(`/api/stores/${id}`, {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({name: newName})
+                });
+                if(res.ok) {
+                    msg.textContent = "Store updated successfully!";
+                    msg.className = "success";
+                } else {
+                    msg.textContent = "Failed to update store: " + await res.text();
+                    msg.className = "error";
+                }
+            } catch(e) {
+                msg.textContent = "Network Error.";
+                msg.className = "error";
+            }
+            setTimeout(() => msg.textContent="", 3000);
+        }
+    </script>
+    <style>
+        .store-name-input { width: 100%; box-sizing: border-box; padding: 5px; }
+        .success { color: green; font-weight: bold; }
+        .error { color: red; font-weight: bold; }
+    </style>
+</body>
+</html>

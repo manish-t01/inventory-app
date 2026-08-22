@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-Store Inventory - Dashboard</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="sidebar">
+        <h2>Multi-Store</h2>
+        <ul>
+            <li><a href="index.html" class="active">Dashboard</a></li>
+            <li><a href="daily-records.html">Daily Records</a></li>
+            <li><a href="daily-entry.html">Daily Entry</a></li>
+            <li><a href="products.html">Products</a></li>
+            <li><a href="stores.html">Stores</a></li>
+            <li><a href="reports.html">Reports</a></li>
+        </ul>
+    </div>
+    
+    <div class="main-content">
+        <h1>Dashboard - <span id="currentMonthLabel"></span></h1>
+        
+        <div class="cards" id="dashboardCards">
+            <div class="card">
+                <h3>Total Sales (All Stores)</h3>
+                <p id="totalSales">Loading...</p>
+            </div>
+            <div class="card">
+                <h3>Total Units Sold</h3>
+                <p id="totalUnits">Loading...</p>
+            </div>
+        </div>
+
+        <h2 style="margin-top: 30px;">Store Breakdown</h2>
+        <table id="dashboardTable">
+            <thead>
+                <tr>
+                    <th>Store Name</th>
+                    <th>Units Sold</th>
+                    <th>Total Sales</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td colspan="3">Loading data...</td></tr>
+            </tbody>
+        </table>
+    
+        <div style="margin-top: 30px; padding: 15px; background: #fff3cd; border: 1px solid #ffeeba; border-radius: 5px;">
+            <h3>Database Backup Instructions</h3>
+            <p>To safely backup your inventory database, open your terminal and run the following command:</p>
+            <code>mysqldump -u root -p inventory_db > inventory_backup.sql</code>
+            <p>Keep the backup file safe. Do this regularly (e.g. weekly).</p>
+        </div>
+    </div>
+
+    <script src="js/app.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const date = new Date();
+            const firstDay = new Date(date.getFullYear(), date.getMonth(), 1);
+            const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+            
+            const monthName = date.toLocaleString('default', { month: 'long' });
+            document.getElementById('currentMonthLabel').textContent = monthName + " " + date.getFullYear();
+
+            const startStr = firstDay.toISOString().split('T')[0];
+            const endStr = lastDay.toISOString().split('T')[0];
+            
+            try {
+                const res = await fetch(`/api/reports/period?startDate=${startStr}&endDate=${endStr}`);
+                if(res.ok) {
+                    const data = await res.json();
+                    
+                    document.getElementById('totalSales').textContent = "₹" + data.grandTotalSales;
+                    document.getElementById('totalUnits').textContent = data.grandTotalUnitsSold;
+                    
+                    const tbody = document.querySelector('#dashboardTable tbody');
+                    tbody.innerHTML = '';
+                    data.storeReports.forEach(store => {
+                        tbody.innerHTML += `
+                            <tr>
+                                <td>${store.storeName}</td>
+                                <td>${store.unitsSold}</td>
+                                <td>₹${store.totalSales}</td>
+                            </tr>
+                        `;
+                    });
+                } else {
+                    document.getElementById('totalSales').textContent = "Error";
+                }
+            } catch(e) {
+                console.error("Dashboard error", e);
+            }
+        });
+    </script>
+</body>
+</html>
