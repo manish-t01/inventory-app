@@ -9,7 +9,7 @@
         .image-panel { 
             width: 300px; 
             flex-shrink: 0; 
-            background: #eee; 
+            background: var(--bg-secondary); 
             padding: 10px; 
             border-radius: 5px; 
             transition: width 0.25s ease, padding 0.25s ease;
@@ -45,6 +45,7 @@
             margin: 0 auto;
         }
     </style>
+    <script src="js/theme.js"></script>
 </head>
 <body>
     <div class="sidebar">
@@ -57,6 +58,12 @@
             <li><a href="stores.html">Stores</a></li>
             <li><a href="reports.html">Reports</a></li>
         </ul>
+
+        <div class="theme-toggle-container">
+            <button id="themeToggleBtn" class="theme-toggle-btn" aria-label="Toggle Theme" onclick="window.toggleTheme()">
+                🌙 Dark Mode
+            </button>
+        </div>
     </div>
     <div class="main-content">
         <h1 id="pageTitle">New Daily Record</h1>
@@ -87,7 +94,7 @@
                     </div>
                 </div>
 
-                <div class="entry-header" style="background:#f9f9f9; border:1px solid #ddd; padding: 10px;">
+                <div class="entry-header" style="background: var(--bg-secondary); border: 1px solid var(--border-color); padding: 10px;">
                     <div>
                         <label>Product:</label>
                         <select id="productSelect">

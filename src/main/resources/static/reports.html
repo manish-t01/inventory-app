@@ -14,10 +14,11 @@
         @media print {
             .sidebar, .tabs, .entry-header, .btn-group, h1 { display: none !important; }
             .main-content { margin: 0; padding: 0; }
-            body { background: #fff; }
+            
             .card { border: 1px solid #000; box-shadow: none; }
         }
     </style>
+    <script src="js/theme.js"></script>
 </head>
 <body>
     <div class="sidebar">
@@ -30,6 +31,12 @@
             <li><a href="stores.html">Stores</a></li>
             <li><a href="reports.html" class="active">Reports</a></li>
         </ul>
+
+        <div class="theme-toggle-container">
+            <button id="themeToggleBtn" class="theme-toggle-btn" aria-label="Toggle Theme" onclick="window.toggleTheme()">
+                🌙 Dark Mode
+            </button>
+        </div>
     </div>
     <div class="main-content">
         <h1>Reports</h1>

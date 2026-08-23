@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Multi-Store Inventory - Dashboard</title>
     <link rel="stylesheet" href="css/style.css">
+    <script src="js/theme.js"></script>
 </head>
 <body>
     <div class="sidebar">
@@ -17,6 +18,12 @@
             <li><a href="stores.html">Stores</a></li>
             <li><a href="reports.html">Reports</a></li>
         </ul>
+
+        <div class="theme-toggle-container">
+            <button id="themeToggleBtn" class="theme-toggle-btn" aria-label="Toggle Theme" onclick="window.toggleTheme()">
+                🌙 Dark Mode
+            </button>
+        </div>
     </div>
     
     <div class="main-content">
@@ -47,7 +54,7 @@
             </tbody>
         </table>
     
-        <div style="margin-top: 30px; padding: 15px; background: #fff3cd; border: 1px solid #ffeeba; border-radius: 5px;">
+        <div style="margin-top: 30px; padding: 15px; background: var(--warning-bg, #fff3cd); border: 1px solid var(--warning-border, #ffeeba); border-radius: 5px;">
             <h3>Database Backup Instructions</h3>
             <p>To safely backup your inventory database, open your terminal and run the following command:</p>
             <code>mysqldump -u root -p inventory_db > inventory_backup.sql</code>
