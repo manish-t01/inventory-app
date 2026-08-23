@@ -75,7 +75,8 @@ public class PdfService {
 
         document.add(totalTable);
 
-        Paragraph generatedDate = new Paragraph("Generated on: " + LocalDate.now(), FontFactory.getFont(FontFactory.HELVETICA_OBLIQUE, 8));
+        java.time.format.DateTimeFormatter dtf = java.time.format.DateTimeFormatter.ofPattern("dd-MM-yyyy");
+        Paragraph generatedDate = new Paragraph("Generated on: " + LocalDate.now().format(dtf), FontFactory.getFont(FontFactory.HELVETICA_OBLIQUE, 8));
         generatedDate.setAlignment(Element.ALIGN_RIGHT);
         document.add(generatedDate);
 

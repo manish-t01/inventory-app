@@ -16,13 +16,13 @@ async function loadDailyRecords() {
             tr.id = `record-row-${r.id}`;
             tr.innerHTML = `
                 <td>${r.id}</td>
-                <td>${r.recordDate}</td>
+                <td>${formatDate(r.recordDate)}</td>
                 <td>${r.store.name}</td>
                 <td>Locked</td>
                 <td>
                     <button class="btn-primary" onclick="window.location.href='daily-entry.html?editId=${r.id}'">Edit</button>
                     <button class="btn-secondary" onclick="printRecord(${r.id})">Print Record</button>
-                    <button class="btn-danger" onclick="confirmDeleteRecord(${r.id}, '${r.recordDate}', '${r.store.name.replace(/'/g, "\'")}')">Delete</button>
+                    <button class="btn-danger" onclick="confirmDeleteRecord(${r.id}, '${formatDate(r.recordDate)}', '${r.store.name.replace(/'/g, "\\'")}')">Delete</button>
                 </td>
             `;
             tbody.appendChild(tr);

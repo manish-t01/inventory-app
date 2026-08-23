@@ -31,6 +31,7 @@
         }
     </style>
     <script src="js/theme.js"></script>
+    <script src="js/app.js"></script>
 </head>
 <body>
     <div class="print-container">
@@ -106,7 +107,7 @@
                 }
 
                 document.getElementById('printStore').innerText = 'Store: ' + storeName;
-                document.getElementById('printDate').innerText = 'Date: ' + record.recordDate;
+                document.getElementById('printDate').innerText = 'Date: ' + formatDate(record.recordDate);
                 document.getElementById('printRecordId').innerText = 'Record ID: ' + record.id;
 
                 let allProducts = [];

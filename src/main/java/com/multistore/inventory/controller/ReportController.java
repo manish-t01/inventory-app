@@ -42,7 +42,9 @@ public class ReportController {
             @RequestParam String reportType) {
         try {
             ReportResponseDTO data = reportService.getPeriodReport(storeId, startDate, endDate);
-            byte[] pdfBytes = pdfService.generateReportPdf(reportType, startDate + " to " + endDate, data);
+            java.time.format.DateTimeFormatter dtf = java.time.format.DateTimeFormatter.ofPattern("dd-MM-yyyy");
+            String formattedPeriod = startDate.format(dtf) + " to " + endDate.format(dtf);
+            byte[] pdfBytes = pdfService.generateReportPdf(reportType, formattedPeriod, data);
             
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_PDF);
